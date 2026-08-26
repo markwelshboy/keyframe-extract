@@ -2,13 +2,13 @@ services:
   keyframe-extract:
     build: .
     ports:
-      - "8088:8000"
+      - "${KEYFRAME_PORT:-8088}:8000"
     environment:
       VIDEO_ROOT: /videos
       OUTPUT_DIR: /output
       CACHE_DIR: /cache
     volumes:
-      - ./videos:/videos:ro
-      - ./output:/output
-      - ./.cache:/cache
+      - ${VIDEO_DIR:-./videos}:/videos:ro
+      - ${PNG_OUTPUT_DIR:-./output}:/output
+      - ${KEYFRAME_CACHE_DIR:-./.cache}:/cache
     restart: unless-stopped
