@@ -28,7 +28,7 @@ cd keyframe-extract
 mkdir -p videos output .cache
 ```
 
-Put or symlink your source files below `./videos`, then:
+With the default layout, put source files under `./videos`, then run:
 
 ```bash
 docker compose up --build
@@ -48,16 +48,26 @@ The Compose defaults are:
 ./videos  -> /videos   (read-only source)
 ./output  -> /output
 ./.cache  -> /cache
+port 8088 -> container port 8000
 ```
 
-If your source videos already live elsewhere, change the first bind mount, for example:
+You do **not** need to move or copy large videos into the repository. Point Compose at any existing source directory:
 
-```yaml
-volumes:
-  - /mnt/media/training-videos:/videos:ro
-  - ./output:/output
-  - ./.cache:/cache
+```bash
+VIDEO_DIR=/mnt/media/training-videos docker compose up --build
 ```
+
+You can also override the PNG output directory, cache directory, or local port:
+
+```bash
+VIDEO_DIR=/mnt/media/training-videos \
+PNG_OUTPUT_DIR=/mnt/media/extracted-pngs \
+KEYFRAME_CACHE_DIR=/tmp/keyframe-extract-cache \
+KEYFRAME_PORT=8099 \
+docker compose up --build
+```
+
+The source mount remains read-only inside the container.
 
 ## Native run
 
