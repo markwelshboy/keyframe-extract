@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keyframe Extract</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111315;
+      --panel: #1a1d20;
+      --panel-2: #22262a;
+      --border: #343a40;
+      --text: #f4f5f6;
+      --muted: #a9b0b7;
+      --accent: #57a6ff;
+      --accent-2: #2786f0;
+      --danger: #ff6b6b;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, select, input { font: inherit; }
+
+    button {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: #59626b; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button.primary { background: var(--accent-2); border-color: var(--accent-2); }
+
+    .app {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    header h1 {
+      font-size: 22px;
+      margin: 0;
+      letter-spacing: -.02em;
+    }
+
+    header .spacer { flex: 1; }
+
+    .source-row {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) auto;
+      gap: 10px;
+      width: min(820px, 100%);
+    }
+
+    select {
+      width: 100%;
+      min-width: 0;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+
+    .notice {
+      margin: 12px 0 16px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 10px;
+      color: var(--muted);
+    }
+
+    .notice.error { color: #ffd1d1; border-color: #7a3c3c; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 310px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .viewer, .sidebar, .keyframes-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .viewer { overflow: hidden; }
+
+    .image-stage {
+      min-height: 420px;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(45deg, #15181a 25%, transparent 25%) 0 0/22px 22px,
+        linear-gradient(45deg, transparent 75%, #15181a 75%) 0 0/22px 22px,
+        linear-gradient(45deg, transparent 75%, #15181a 75%) 11px -11px/22px 22px,
+        linear-gradient(45deg, #15181a 25%, #1a1d20 25%) 11px -11px/22px 22px;
+      position: relative;
+    }
+
+    .image-stage img {
+      display: block;
+      max-width: 100%;
+      max-height: 72vh;
+      object-fit: contain;
+    }
+
+    .image-stage .empty {
+      color: var(--muted);
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    .frame-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0,0,0,.7);
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      backdrop-filter: blur(6px);
+    }
+
+    .controls {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .step-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .step-row button { min-width: 72px; }
+
+    .timeline-row {
+      display: grid;
+      grid-template-columns: auto minmax(80px, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+    .context-strip {
+      display: grid;
+      grid-template-columns: repeat(9, minmax(72px, 1fr));
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .context-frame {
+      min-width: 72px;
+      border: 1px solid var(--border);
+      background: #0e1012;
+      border-radius: 8px;
+      overflow: hidden;
+      padding: 0;
+      position: relative;
+      aspect-ratio: 16 / 10;
+    }
+
+    .context-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .context-frame.current { outline: 2px solid var(--accent); border-color: transparent; }
+    .context-frame span {
+      position: absolute;
+      right: 4px;
+      bottom: 3px;
+      padding: 2px 4px;
+      background: rgba(0,0,0,.7);
+      border-radius: 4px;
+      font-size: 10px;
+    }
+
+    .sidebar { padding: 16px; }
+    .sidebar h2, .keyframes-panel h2 { font-size: 15px; margin: 0 0 12px; }
+
+    .meta {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px 12px;
+      font-size: 13px;
+    }
+
+    .meta dt { color: var(--muted); }
+    .meta dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+
+    .export-box {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      display: grid;
+      gap: 10px;
+    }
+
+    .export-box button { width: 100%; }
+    .export-result { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; min-height: 18px; }
+
+    .keyframes-panel {
+      margin-top: 16px;
+      padding: 14px;
+    }
+
+    .keyframe-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .keyframe-header .hint { color: var(--muted); font-size: 12px; }
+
+    .keyframe-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 9px;
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 3px;
+    }
+
+    .keyframe-card {
+      border: 1px solid var(--border);
+      background: #0f1113;
+      border-radius: 9px;
+      overflow: hidden;
+      padding: 0;
+      text-align: left;
+      min-width: 0;
+    }
+
+    .keyframe-card.selected { outline: 2px solid var(--accent); border-color: transparent; }
+    .keyframe-card img { width: 100%; aspect-ratio: 16/10; object-fit: cover; display: block; background: #0a0b0c; }
+    .keyframe-card .caption {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 8px;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+    }
+
+    .kbd {
+      display: inline-block;
+      border: 1px solid #4b5259;
+      border-bottom-width: 2px;
+      border-radius: 5px;
+      padding: 1px 5px;
+      color: var(--text);
+      font-size: 11px;
+    }
+
+    @media (max-width: 900px) {
+      .workspace { grid-template-columns: 1fr; }
+      .sidebar { order: -1; }
+      .image-stage { min-height: 280px; }
+      .context-strip { grid-template-columns: repeat(9, 100px); }
+    }
+
+    @media (max-width: 560px) {
+      .app { padding: 10px; }
+      .source-row { grid-template-columns: 1fr; }
+      .timeline-row { grid-template-columns: 1fr; }
+      .timeline-row span:last-child { text-align: right; }
+      .keyframe-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <header>
+      <h1>Keyframe Extract</h1>
+      <div class="spacer"></div>
+      <div class="source-row">
+        <select id="fileSelect" aria-label="Video file"><option>Loading videos…</option></select>
+        <button id="openButton" type="button">Open</button>
+      </div>
+      <button id="refreshButton" type="button">Refresh</button>
+    </header>
+
+    <div id="notice" class="notice">Place videos under the configured VIDEO_ROOT, then choose one above.</div>
+
+    <section class="workspace">
+      <div class="viewer">
+        <div class="image-stage" id="imageStage">
+          <div class="empty" id="emptyState">Open a video to build its frame index.</div>
+          <img id="previewImage" alt="Selected video frame" hidden>
+          <div class="frame-badge" id="frameBadge" hidden></div>
+        </div>
+
+        <div class="controls">
+          <div class="step-row">
+            <button type="button" data-step="-10" disabled>−10</button>
+            <button type="button" data-step="-1" disabled>← 1 frame</button>
+            <button type="button" id="prevKeyButton" disabled>Prev key</button>
+            <button type="button" id="nextKeyButton" disabled>Next key</button>
+            <button type="button" data-step="1" disabled>1 frame →</button>
+            <button type="button" data-step="10" disabled>+10</button>
+          </div>
+
+          <div class="timeline-row">
+            <span id="frameLabel">Frame —</span>
+            <input id="frameSlider" type="range" min="0" max="0" value="0" disabled aria-label="Frame index">
+            <span id="timeLabel">00:00:00.000</span>
+          </div>
+
+          <div class="context-strip" id="contextStrip" aria-label="Neighboring frames"></div>
+        </div>
+      </div>
+
+      <aside class="sidebar">
+        <h2>Source</h2>
+        <dl class="meta" id="metadata">
+          <dt>Video</dt><dd>—</dd>
+          <dt>Codec</dt><dd>—</dd>
+          <dt>Size</dt><dd>—</dd>
+          <dt>Pixel format</dt><dd>—</dd>
+          <dt>Bit depth</dt><dd>—</dd>
+          <dt>Frames</dt><dd>—</dd>
+          <dt>Keyframes</dt><dd>—</dd>
+          <dt>Duration</dt><dd>—</dd>
+        </dl>
+
+        <div class="export-box">
+          <button id="extractButton" class="primary" type="button" disabled>Extract full-resolution PNG</button>
+          <div class="export-result" id="exportResult"></div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5">
+            Step with <span class="kbd">←</span> <span class="kbd">→</span>.
+            Hold <span class="kbd">Shift</span> for 10 frames.
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="keyframes-panel">
+      <div class="keyframe-header">
+        <h2>Codec keyframes</h2>
+        <span class="hint" id="keyframeHint">Open a video to populate the contact sheet.</span>
+      </div>
+      <div class="keyframe-grid" id="keyframeGrid"></div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const state = {
+        session: null,
+        frameIndex: 0,
+        renderToken: 0,
+      };
+
+      const els = {
+        fileSelect: document.getElementById('fileSelect'),
+        openButton: document.getElementById('openButton'),
+        refreshButton: document.getElementById('refreshButton'),
+        notice: document.getElementById('notice'),
+        emptyState: document.getElementById('emptyState'),
+        previewImage: document.getElementById('previewImage'),
+        frameBadge: document.getElementById('frameBadge'),
+        frameSlider: document.getElementById('frameSlider'),
+        frameLabel: document.getElementById('frameLabel'),
+        timeLabel: document.getElementById('timeLabel'),
+        contextStrip: document.getElementById('contextStrip'),
+        metadata: document.getElementById('metadata'),
+        extractButton: document.getElementById('extractButton'),
+        exportResult: document.getElementById('exportResult'),
+        keyframeGrid: document.getElementById('keyframeGrid'),
+        keyframeHint: document.getElementById('keyframeHint'),
+        prevKeyButton: document.getElementById('prevKeyButton'),
+        nextKeyButton: document.getElementById('nextKeyButton'),
+      };
+
+      const stepButtons = [...document.querySelectorAll('[data-step]')];
+
+      function setNotice(message, error = false) {
+        els.notice.textContent = message;
+        els.notice.classList.toggle('error', error);
+      }
+
+      function formatBytes(bytes) {
+        if (!Number.isFinite(bytes)) return '—';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let value = bytes;
+        let unit = 0;
+        while (value >= 1024 && unit < units.length - 1) {
+          value /= 1024;
+          unit += 1;
+        }
+        return `${value.toFixed(unit >= 2 ? 1 : 0)} ${units[unit]}`;
+      }
+
+      function formatTime(seconds) {
+        if (!Number.isFinite(seconds)) return '00:00:00.000';
+        const msTotal = Math.max(0, Math.round(seconds * 1000));
+        const hours = Math.floor(msTotal / 3600000);
+        const minutes = Math.floor((msTotal % 3600000) / 60000);
+        const secs = Math.floor((msTotal % 60000) / 1000);
+        const ms = msTotal % 1000;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+      }
+
+      async function api(url, options = {}) {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          let detail = `${response.status} ${response.statusText}`;
+          try {
+            const body = await response.json();
+            if (body.detail) detail = body.detail;
+          } catch (_) {}
+          throw new Error(detail);
+        }
+        return response.json();
+      }
+
+      async function refreshFiles() {
+        els.refreshButton.disabled = true;
+        try {
+          const data = await api('/api/files');
+          els.fileSelect.innerHTML = '';
+          if (!data.files.length) {
+            const option = document.createElement('option');
+            option.textContent = `No supported videos found in ${data.root}`;
+            option.value = '';
+            els.fileSelect.appendChild(option);
+            els.openButton.disabled = true;
+            setNotice(`No videos found. Add HEVC/MP4/MOV/MKV files beneath ${data.root}.`);
+            return;
+          }
+          for (const file of data.files) {
+            const option = document.createElement('option');
+            option.value = file.path;
+            option.textContent = `${file.path}  ·  ${formatBytes(file.bytes)}`;
+            els.fileSelect.appendChild(option);
+          }
+          els.openButton.disabled = false;
+          setNotice(`${data.files.length} video${data.files.length === 1 ? '' : 's'} available under ${data.root}.`);
+        } catch (error) {
+          setNotice(error.message, true);
+        } finally {
+          els.refreshButton.disabled = false;
+        }
+      }
+
+      function setEnabled(enabled) {
+        els.frameSlider.disabled = !enabled;
+        els.extractButton.disabled = !enabled;
+        els.prevKeyButton.disabled = !enabled;
+        els.nextKeyButton.disabled = !enabled;
+        stepButtons.forEach(button => { button.disabled = !enabled; });
+      }
+
+      function metadataRows(session) {
+        const fps = session.avg_fps ? session.avg_fps.toFixed(3).replace(/\.000$/, '') : 'VFR / unknown';
+        const color = [session.color_space, session.color_transfer, session.color_primaries].filter(Boolean).join(' / ');
+        return [
+          ['Video', session.filename],
+          ['Codec', [session.codec, session.profile].filter(Boolean).join(' · ')],
+          ['Size', `${session.width} × ${session.height}`],
+          ['Pixel format', session.pix_fmt || '—'],
+          ['Bit depth', `${session.bit_depth}-bit`],
+          ['Frame rate', fps],
+          ['Frames', session.frame_count.toLocaleString()],
+          ['Keyframes', session.keyframe_indices.length.toLocaleString()],
+          ['Duration', formatTime(session.duration)],
+          ['Color', color || '—'],
+        ];
+      }
+
+      function renderMetadata(session) {
+        els.metadata.innerHTML = '';
+        for (const [label, value] of metadataRows(session)) {
+          const dt = document.createElement('dt');
+          const dd = document.createElement('dd');
+          dt.textContent = label;
+          dd.textContent = value || '—';
+          els.metadata.append(dt, dd);
+        }
+      }
+
+      function keyframeCard(frameIndex) {
+        const session = state.session;
+        const frame = session.frames[frameIndex];
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'keyframe-card';
+        button.dataset.frame = String(frameIndex);
+        button.title = `Jump to frame ${frameIndex + 1}`;
+
+        const image = document.createElement('img');
+        image.loading = 'lazy';
+        image.alt = `Keyframe ${frameIndex + 1}`;
+        image.src = `/api/frame/${session.session_id}/${frameIndex}?kind=thumb`;
+
+        const caption = document.createElement('div');
+        caption.className = 'caption';
+        const left = document.createElement('span');
+        const right = document.createElement('span');
+        left.textContent = `#${(frameIndex + 1).toLocaleString()}`;
+        right.textContent = formatTime(frame.t);
+        caption.append(left, right);
+        button.append(image, caption);
+        button.addEventListener('click', () => selectFrame(frameIndex));
+        return button;
+      }
+
+      function renderKeyframes() {
+        els.keyframeGrid.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        for (const frameIndex of state.session.keyframe_indices) {
+          fragment.appendChild(keyframeCard(frameIndex));
+        }
+        els.keyframeGrid.appendChild(fragment);
+        els.keyframeHint.textContent = `${state.session.keyframe_indices.length.toLocaleString()} true ffprobe keyframes · click one, then step.`;
+      }
+
+      function nearestKeyframe(direction) {
+        const keys = state.session.keyframe_indices;
+        if (direction < 0) {
+          for (let i = keys.length - 1; i >= 0; i -= 1) {
+            if (keys[i] < state.frameIndex) return keys[i];
+          }
+          return keys[0];
+        }
+        for (const key of keys) {
+          if (key > state.frameIndex) return key;
+        }
+        return keys[keys.length - 1];
+      }
+
+      function updateSelectedKeyframe() {
+        document.querySelectorAll('.keyframe-card.selected').forEach(el => el.classList.remove('selected'));
+        if (!state.session.frames[state.frameIndex].key) return;
+        const card = els.keyframeGrid.querySelector(`[data-frame="${state.frameIndex}"]`);
+        if (card) {
+          card.classList.add('selected');
+          card.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }
+      }
+
+      function renderContextStrip() {
+        const session = state.session;
+        const center = state.frameIndex;
+        const start = Math.max(0, Math.min(session.frame_count - 9, center - 4));
+        const end = Math.min(session.frame_count, start + 9);
+        els.contextStrip.innerHTML = '';
+
+        for (let index = start; index < end; index += 1) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = `context-frame${index === center ? ' current' : ''}`;
+          button.title = `Frame ${index + 1}`;
+          const image = document.createElement('img');
+          image.loading = 'lazy';
+          image.alt = `Frame ${index + 1}`;
+          image.src = `/api/frame/${session.session_id}/${index}?kind=thumb`;
+          const label = document.createElement('span');
+          label.textContent = index === center ? `#${index + 1}` : `${index + 1}`;
+          button.append(image, label);
+          button.addEventListener('click', () => selectFrame(index));
+          els.contextStrip.appendChild(button);
+        }
+      }
+
+      function prefetchNeighborPreviews() {
+        const session = state.session;
+        for (const delta of [-1, 1]) {
+          const index = state.frameIndex + delta;
+          if (index < 0 || index >= session.frame_count) continue;
+          const image = new Image();
+          image.src = `/api/frame/${session.session_id}/${index}?kind=preview`;
+        }
+      }
+
+      function selectFrame(frameIndex) {
+        if (!state.session) return;
+        const clamped = Math.max(0, Math.min(state.session.frame_count - 1, Number(frameIndex) || 0));
+        state.frameIndex = clamped;
+        state.renderToken += 1;
+        const token = state.renderToken;
+        const frame = state.session.frames[clamped];
+
+        els.frameSlider.value = String(clamped);
+        els.frameLabel.textContent = `Frame ${(clamped + 1).toLocaleString()} / ${state.session.frame_count.toLocaleString()}`;
+        els.timeLabel.textContent = formatTime(frame.t);
+        els.frameBadge.textContent = `${frame.key ? 'KEY · ' : ''}${frame.type} · #${clamped + 1}`;
+        els.frameBadge.hidden = false;
+        els.exportResult.textContent = '';
+
+        const url = `/api/frame/${state.session.session_id}/${clamped}?kind=preview`;
+        els.previewImage.onload = () => {
+          if (token !== state.renderToken) return;
+          els.emptyState.hidden = true;
+          els.previewImage.hidden = false;
+          prefetchNeighborPreviews();
+        };
+        els.previewImage.onerror = () => {
+          if (token !== state.renderToken) return;
+          setNotice(`Could not decode frame ${clamped + 1}.`, true);
+        };
+        els.previewImage.src = url;
+
+        renderContextStrip();
+        updateSelectedKeyframe();
+      }
+
+      async function openSelected() {
+        if (!els.fileSelect.value) return;
+        els.openButton.disabled = true;
+        setEnabled(false);
+        els.previewImage.hidden = true;
+        els.emptyState.hidden = false;
+        els.emptyState.textContent = 'Indexing frames with ffprobe…';
+        els.keyframeGrid.innerHTML = '';
+        els.contextStrip.innerHTML = '';
+        els.keyframeHint.textContent = 'Scanning frame timestamps and codec keyframes…';
+        setNotice('Opening source and building exact frame index. The first scan is cached.');
+
+        try {
+          const session = await api('/api/open', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: els.fileSelect.value }),
+          });
+          state.session = session;
+          state.frameIndex = session.keyframe_indices[0] || 0;
+          els.frameSlider.min = '0';
+          els.frameSlider.max = String(Math.max(0, session.frame_count - 1));
+          renderMetadata(session);
+          renderKeyframes();
+          setEnabled(true);
+          selectFrame(state.frameIndex);
+          setNotice(`Indexed ${session.frame_count.toLocaleString()} frames. Preview images are cached on demand; PNG exports always decode from the source.`);
+        } catch (error) {
+          state.session = null;
+          els.emptyState.textContent = 'Unable to open this video.';
+          els.keyframeHint.textContent = 'No frame index available.';
+          setNotice(error.message, true);
+        } finally {
+          els.openButton.disabled = false;
+        }
+      }
+
+      async function extractCurrent() {
+        if (!state.session) return;
+        els.extractButton.disabled = true;
+        els.exportResult.textContent = 'Decoding full-resolution source frame…';
+        try {
+          const result = await api('/api/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: state.session.session_id,
+              frame_index: state.frameIndex,
+            }),
+          });
+          els.exportResult.textContent = `Saved ${result.bit_depth}-bit PNG: ${result.path}`;
+          const link = document.createElement('a');
+          link.href = result.download_url;
+          link.download = result.filename;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        } catch (error) {
+          els.exportResult.textContent = error.message;
+        } finally {
+          els.extractButton.disabled = false;
+        }
+      }
+
+      function step(delta) {
+        if (!state.session) return;
+        selectFrame(state.frameIndex + delta);
+      }
+
+      els.refreshButton.addEventListener('click', refreshFiles);
+      els.openButton.addEventListener('click', openSelected);
+      els.fileSelect.addEventListener('dblclick', openSelected);
+      els.extractButton.addEventListener('click', extractCurrent);
+      stepButtons.forEach(button => button.addEventListener('click', () => step(Number(button.dataset.step))));
+      els.prevKeyButton.addEventListener('click', () => selectFrame(nearestKeyframe(-1)));
+      els.nextKeyButton.addEventListener('click', () => selectFrame(nearestKeyframe(1)));
+      els.frameSlider.addEventListener('input', () => selectFrame(Number(els.frameSlider.value)));
+
+      document.addEventListener('keydown', event => {
+        if (!state.session) return;
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          step(event.shiftKey ? -10 : -1);
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          step(event.shiftKey ? 10 : 1);
+        } else if (event.key === '[') {
+          event.preventDefault();
+          selectFrame(nearestKeyframe(-1));
+        } else if (event.key === ']') {
+          event.preventDefault();
+          selectFrame(nearestKeyframe(1));
+        }
+      });
+
+      refreshFiles();
+    })();
+  </script>
+</body>
+</html>
